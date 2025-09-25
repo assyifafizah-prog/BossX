@@ -997,6 +997,7 @@
                                     <p><strong>• Node Status:</strong> <span id="node-status">Belum Aktif</span></p>
                                     <p><strong>• Auto Stop:</strong> Setiap hari jam 06:00</p>
                                     <p><strong>• Auto Claim:</strong> Hanya saat validasi running</p>
+                                    <p><strong>• Masa Berlaku Validasi:</strong> <span id="masa-berlaku">40.000.000 detik</span></p>
                                 </div>
                                 <div>
                                     <p><strong>• Minimal Aktivasi:</strong> 10 BossX</p>
@@ -1425,68 +1426,19 @@
                         <div id="chat-room-container" class="w-full h-full"></div>
                     </div>
                     <!-- END HALAMAN BARU -->
-                    <!-- P2P Page -->
+                    <!-- Other Pages -->
                     <div id="p2p-page" class="page-content">
                         <div class="p-6">
                             <h1 class="text-2xl font-bold text-amber-400 mb-4">Peer to Peer</h1>
                             <p class="text-gray-400">Fitur Peer to Peer akan segera hadir...</p>
                         </div>
                     </div>
-                    <!-- FAQ Page -->
                     <div id="faq-page" class="page-content">
                         <div class="p-6">
-                            <h1 class="text-2xl font-bold text-amber-400 mb-4">FAQ BossX</h1>
-                            <p class="text-gray-400 mb-6">Temukan jawaban atas pertanyaan umum tentang BossX Crypto Exchange dan Validator Masternode System.</p>
-                            
-                            <!-- Accordion Container -->
-                            <div class="space-y-4">
-                                <!-- FAQ Item 1: Umum -->
-                                <div class="bg-gray-900 border border-amber-500/20 rounded-xl overflow-hidden">
-                                    <button class="faq-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-amber-400 hover:bg-gray-800/50 transition-colors">
-                                        Apa itu BossX?
-                                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
-                                    </button>
-                                    <div class="faq-content p-4 text-gray-300 hidden">
-                                        BossX adalah platform crypto exchange dengan fitur validator masternode. Anda bisa stake BossX untuk dapat reward, deposit/withdrawal, dan trading P2P.
-                                    </div>
-                                </div>
-                                
-                                <!-- FAQ Item 2: Validator -->
-                                <div class="bg-gray-900 border border-amber-500/20 rounded-xl overflow-hidden">
-                                    <button class="faq-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-amber-400 hover:bg-gray-800/50 transition-colors">
-                                        Bagaimana cara aktivasi node validator?
-                                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
-                                    </button>
-                                    <div class="faq-content p-4 text-gray-300 hidden">
-                                        Masuk ke dashboard, input minimal 10 BossX di kartu Aktivasi Node, lalu klik Aktivasi. Setelah itu, tekan Power ON untuk mulai validasi. Reward akumulasi per detik, auto-claim setiap 60 detik.
-                                    </div>
-                                </div>
-                                
-                                <!-- FAQ Item 3: Deposit/Withdrawal -->
-                                <div class="bg-gray-900 border border-amber-500/20 rounded-xl overflow-hidden">
-                                    <button class="faq-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-amber-400 hover:bg-gray-800/50 transition-colors">
-                                        Berapa minimal deposit dan fee withdrawal?
-                                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
-                                    </button>
-                                    <div class="faq-content p-4 text-gray-300 hidden">
-                                        Minimal deposit: 10 USDT atau 1 BossX. Fee withdrawal: 1 USDT (TRC20/BEP20) atau 0.1 BossX (TRC20). Proses 1-24 jam.
-                                    </div>
-                                </div>
-                                
-                                <!-- Tambah item lain sesuai kebutuhan, misalnya Security, P2P, dll. -->
-                                <div class="bg-gray-900 border border-amber-500/20 rounded-xl overflow-hidden">
-                                    <button class="faq-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-amber-400 hover:bg-gray-800/50 transition-colors">
-                                        Bagaimana keamanan di BossX?
-                                        <i data-lucide="chevron-down" class="w-5 h-5 transition-transform"></i>
-                                    </button>
-                                    <div class="faq-content p-4 text-gray-300 hidden">
-                                        Kami gunakan escrow untuk P2P, 2FA, dan enkripsi. Selalu periksa alamat wallet dan jangan bagikan private key.
-                                    </div>
-                                </div>
-                            </div>
+                            <h1 class="text-2xl font-bold text-amber-400 mb-4">FAQ</h1>
+                            <p class="text-gray-400">Fitur FAQ akan segera hadir...</p>
                         </div>
                     </div>
-                    <!-- Settings Page -->
                     <div id="settings-page" class="page-content">
                         <div class="p-6">
                             <h1 class="text-2xl font-bold text-amber-400 mb-4">Settings</h1>
@@ -1518,7 +1470,7 @@
         let bossxBalance = 1000; // Starting balance for demo
         let stakedAmount = 0; // Jumlah BossX yang di-stake
         let shareCounter = 0; // Counter for auto-claim shares
-        let logInterval; // Timeout untuk log
+        let logInterval; // Interval for periodic logs
         // Deposit & Withdrawal variables
         const walletAddresses = {
             USDT: {
@@ -1735,6 +1687,31 @@
             logOutput.scrollTop = logOutput.scrollHeight;
         }
 
+        let masaBerlaku = 40000000; // Masa berlaku awal 40.000.000 detik
+        let masaInterval;
+
+        function updateMasaBerlaku() {
+            document.getElementById('masa-berlaku').textContent = masaBerlaku.toLocaleString('id-ID') + ' detik';
+            if (masaBerlaku <= 0) {
+                clearInterval(masaInterval);
+                document.getElementById('masa-berlaku').textContent = '0 detik (Kontrak Berakhir)';
+                forceStopValidation(); // Stop validasi jika masa berlaku habis
+                appendLog('[STATUS] Masa berlaku validasi berakhir (0 detik)');
+                showErrorMessage('Kontrak validasi berakhir! Aktivasi ulang diperlukan.');
+            }
+        }
+
+        function startMasaCountdown() {
+            if (masaInterval) clearInterval(masaInterval);
+            masaInterval = setInterval(() => {
+                if (isValidationRunning && masaBerlaku > 0) {
+                    masaBerlaku--;
+                    updateMasaBerlaku();
+                }
+            }, 1000);
+            updateMasaBerlaku(); // Update segera
+        }
+
         function activateNode() {
             const inputValue = document.getElementById('activation-input').value;
             const inputAmount = parseFloat(inputValue) || 0;
@@ -1889,6 +1866,7 @@
                 startCountdown();
                 startValidationRunning(); // Mulai akumulasi reward
                 startAutoClaimCountdown(); // Mulai hitung mundur auto-claim
+                startMasaCountdown(); // Mulai countdown masa berlaku
                 // Add log entries for power on
                 appendLog('[INFO] Power On aktiv');
                 appendLog('[STATUS] Connected successfully to masternode Validasi Running');
@@ -1905,11 +1883,13 @@
                 }
                 stopValidationRunning();
                 stopAutoClaimCountdown();
+                if (masaInterval) clearInterval(masaInterval);
+                appendLog('[INFO] Validasi dihentikan manual');
                 showSuccessMessage('Validasi dihentikan manual.');
             }
             lucide.createIcons();
         }
-        function forceStopValidation() {
+        function forceStopValidation(reason = 'otomatis pada jam 06:00') {
             if (!isValidationRunning) return;
             isValidationRunning = false;
             const powerBtn = document.getElementById('power-btn');
@@ -1926,7 +1906,9 @@
             }
             stopValidationRunning();
             stopAutoClaimCountdown();
-            showSuccessMessage('Validasi dihentikan otomatis pada jam 06:00. Silakan aktifkan kembali untuk melanjutkan.');
+            if (masaInterval) clearInterval(masaInterval);
+            appendLog(`[STATUS] Validasi dihentikan ${reason}`);
+            showSuccessMessage(`Validasi dihentikan ${reason}. Silakan aktifkan kembali untuk melanjutkan.`);
             lucide.createIcons();
         }
         function startCountdown() {
@@ -1951,7 +1933,7 @@
             const now = new Date();
             if (now.getHours() === 6 && now.getMinutes() === 0 && now.getSeconds() === 0) {
                 if (isValidationRunning) {
-                    forceStopValidation();
+                    forceStopValidation('otomatis pada jam 06:00');
                 }
             }
         }
@@ -2518,16 +2500,6 @@
                 if (e.target.id === 'withdrawal-amount') {
                     updateWithdrawalSummary();
                 }
-            });
-            // FAQ Accordion
-            document.querySelectorAll('.faq-toggle').forEach(button => {
-                button.addEventListener('click', function() {
-                    const content = this.nextElementSibling;
-                    const icon = this.querySelector('[data-lucide]');
-                    content.classList.toggle('hidden');
-                    icon.classList.toggle('rotate-180');
-                    lucide.createIcons(); // Refresh ikon jika perlu
-                });
             });
             // Clear log
             document.getElementById('clear-log').addEventListener('click', function() {
