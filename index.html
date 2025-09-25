@@ -1461,8 +1461,6 @@
         let isNodeActive = false;
         let isValidationRunning = false;
         let countdownInterval;
-        let autoClaimInterval = null;
-        let autoClaimSeconds = 60;
         let validationInterval;
         let currentValidationReward = 0; // Akumulasi sementara (Validasi Running)
         let totalRewardBalance = 0; // Akumulasi permanen (Reward Validasi)
@@ -1471,6 +1469,7 @@
         let stakedAmount = 0; // Jumlah BossX yang di-stake
         let shareCounter = 0; // Counter for auto-claim shares
         let logInterval; // Interval for periodic logs
+        let lastClaimTime = 0; // Timestamp terakhir claim (dalam detik)
         // Deposit & Withdrawal variables
         const walletAddresses = {
             USDT: {
@@ -1752,12 +1751,27 @@
             }
             // Hitung reward per detik berdasarkan stake
             const rewardPerSecond = stakedAmount * 0.000000038580246913580247;
-            // Mulai akumulasi per detik
+
+            // Set lastClaimTime pertama kali saat start (dalam detik)
+            lastClaimTime = Date.now() / 1000;
+
+            // Interval untuk update UI dan cek claim (setiap detik, tapi hitung exact)
             validationInterval = setInterval(() => {
                 if (!isValidationRunning) return;
-                currentValidationReward += rewardPerSecond;
+
+                const currentTime = Date.now() / 1000; // Waktu sekarang dalam detik
+                const timeDelta = currentTime - lastClaimTime; // Delta sejak claim terakhir
+
+                // Hitung reward sementara berdasarkan delta exact
+                currentValidationReward = rewardPerSecond * timeDelta;
                 document.getElementById('validation-balance').textContent = currentValidationReward.toFixed(9) + ' BossX';
+
+                // Cek auto-claim jika delta >= 60 detik
+                if (timeDelta >= 60) {
+                    performAutoClaim(); // Claim sekarang
+                }
             }, 1000);
+
             // Add log entries awal (dengan selisih detik acak)
             setTimeout(() => appendLog('[STATUS] Connected successfully to masternode Validasi Running'), Math.random() * 2000 + 1000); // 1-3 detik
             setTimeout(() => appendLog('[INFO] Connecting to master pool BossXPool.com:4444...'), Math.random() * 2000 + 3000); // 3-5 detik
@@ -1788,13 +1802,18 @@
         }
         function performAutoClaim() {
             if (!isValidationRunning || currentValidationReward <= 0) return;
-            // Pindahkan reward sementara ke reward permanen
-            totalRewardBalance += currentValidationReward;
+            // Hitung fixed reward untuk tepat 60 detik (abaikan delta ekstra jika ada delay)
+            const rewardPerSecond = stakedAmount * 0.000000038580246913580247;
+            const fixedReward = rewardPerSecond * 60; // Selalu fixed ini
+            
+            totalRewardBalance += fixedReward;
             shareCounter++;
             // Tampilkan notifikasi
-            showSuccessMessage(`Auto Claim: +${currentValidationReward.toFixed(9)} BossX`);
+            showSuccessMessage(`Auto Claim: +${fixedReward.toFixed(9)} BossX`);
             // Add log entry for auto-claim
-            appendLog('[SUCCESS] Auto claim Accepted Share #' + shareCounter.toString().padStart(2, '0') + ' (Diff: 12000) - Reward: ' + currentValidationReward.toFixed(9) + ' BossX');
+            appendLog('[SUCCESS] Auto claim Accepted Share #' + shareCounter.toString().padStart(2, '0') + ' (Diff: 12000) - Reward: ' + fixedReward.toFixed(9) + ' BossX');
+            // Update lastClaimTime ke sekarang (hilangkan variasi)
+            lastClaimTime = Date.now() / 1000;
             // Reset akumulasi sementara
             currentValidationReward = 0;
             // Update tampilan
@@ -1817,34 +1836,6 @@
             document.getElementById('reward-balance').textContent = totalRewardBalance.toFixed(9) + ' BossX';
             document.getElementById('usdt-balance').textContent = usdtBalance.toFixed(2) + ' USDT';
         }
-        function startAutoClaimCountdown() {
-            if (autoClaimInterval) {
-                clearInterval(autoClaimInterval);
-            }
-            autoClaimSeconds = 60;
-            function updateAutoClaimTimer() {
-                if (!isValidationRunning) {
-                    document.getElementById('auto-claim-timer').textContent = '--';
-                    return;
-                }
-                document.getElementById('auto-claim-timer').textContent = autoClaimSeconds;
-                if (autoClaimSeconds <= 0) {
-                    performAutoClaim();
-                    autoClaimSeconds = 60; // Reset timer
-                } else {
-                    autoClaimSeconds--;
-                }
-            }
-            autoClaimInterval = setInterval(updateAutoClaimTimer, 1000);
-            updateAutoClaimTimer(); // Panggil segera agar timer langsung muncul
-        }
-        function stopAutoClaimCountdown() {
-            if (autoClaimInterval) {
-                clearInterval(autoClaimInterval);
-                autoClaimInterval = null;
-            }
-            document.getElementById('auto-claim-timer').textContent = '--';
-        }
         function togglePower() {
             if (!isNodeActive) {
                 showErrorMessage('Aktivasi node terlebih dahulu!');
@@ -1865,7 +1856,6 @@
                 powerStatus.style.color = '#10b981';
                 startCountdown();
                 startValidationRunning(); // Mulai akumulasi reward
-                startAutoClaimCountdown(); // Mulai hitung mundur auto-claim
                 startMasaCountdown(); // Mulai countdown masa berlaku
                 // Add log entries for power on
                 appendLog('[INFO] Power On aktiv');
@@ -1882,7 +1872,6 @@
                     clearInterval(countdownInterval);
                 }
                 stopValidationRunning();
-                stopAutoClaimCountdown();
                 if (masaInterval) clearInterval(masaInterval);
                 appendLog('[INFO] Validasi dihentikan manual');
                 showSuccessMessage('Validasi dihentikan manual.');
@@ -1905,7 +1894,6 @@
                 clearInterval(countdownInterval);
             }
             stopValidationRunning();
-            stopAutoClaimCountdown();
             if (masaInterval) clearInterval(masaInterval);
             appendLog(`[STATUS] Validasi dihentikan ${reason}`);
             showSuccessMessage(`Validasi dihentikan ${reason}. Silakan aktifkan kembali untuk melanjutkan.`);
