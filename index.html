@@ -1766,6 +1766,10 @@
                 currentValidationReward = rewardPerSecond * timeDelta;
                 document.getElementById('validation-balance').textContent = currentValidationReward.toFixed(9) + ' BossX';
 
+                // Update countdown timer mundur
+                const remaining = 60 - Math.floor(timeDelta % 60);
+                document.getElementById('auto-claim-timer').textContent = remaining;
+
                 // Cek auto-claim jika delta >= 60 detik
                 if (timeDelta >= 60) {
                     performAutoClaim(); // Claim sekarang
@@ -1799,6 +1803,8 @@
                 clearTimeout(logInterval);
                 logInterval = null;
             }
+            // Reset timer UI saat stop
+            document.getElementById('auto-claim-timer').textContent = '--';
         }
         function performAutoClaim() {
             if (!isValidationRunning || currentValidationReward <= 0) return;
@@ -1855,7 +1861,7 @@
                 powerStatus.style.display = 'block';
                 powerStatus.style.color = '#10b981';
                 startCountdown();
-                startValidationRunning(); // Mulai akumulasi reward
+                startValidationRunning(); // Mulai akumulasi reward dan countdown
                 startMasaCountdown(); // Mulai countdown masa berlaku
                 // Add log entries for power on
                 appendLog('[INFO] Power On aktiv');
